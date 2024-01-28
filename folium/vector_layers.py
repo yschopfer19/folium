@@ -127,12 +127,45 @@ class BaseMultiLocation(MacroElement):
     :meta private:
 
     """
+    def _add_highlight_color(self):
+        self._template = Template(
+            """
+            {% macro script(this, kwargs) %}
+                var layer = L.{{ this._name|lower }};
+                var {{ this.get_name() }} = layer(
+                    {{ this.locations|tojson }},
+                    {{ this.options|tojson }}          
+                ).addTo({{this._parent.get_name()}});
+                
+                {{ this.get_name() }}.options.original_color = {{ this.options.color|tojson }};
+    
+                function highlightLayer(e) {
+                    if (e.target.getTooltip()) {
+                        e.target.setStyle({ color:  e.target.options.highlight_color });
+                    }
+                }
+
+                function resetHighlight(e) {
+                    e.target.setStyle({ color:  e.target.options.original_color });
+                }
+    
+                {% if this.options.highlight_color %}
+                {{ this.get_name() }}.on({
+                    mouseover: highlightLayer,
+                    mouseout: resetHighlight
+                });
+                {% endif %}
+            {% endmacro %}
+            """
+        )
 
     def __init__(
         self,
         locations: TypeMultiLine,
         popup: Union[Popup, str, None] = None,
         tooltip: Union[Tooltip, str, None] = None,
+        highlight_color: Optional[str] = None,
+        **kwargs: TypePathOptions
     ):
         super().__init__()
         self.locations = validate_multi_locations(locations)
@@ -142,6 +175,9 @@ class BaseMultiLocation(MacroElement):
             self.add_child(
                 tooltip if isinstance(tooltip, Tooltip) else Tooltip(str(tooltip))
             )
+        self.options = path_options(line=True, highlight_color=highlight_color, **kwargs)
+        self._add_highlight_color()
+
 
     def _get_self_bounds(self) -> List[List[Optional[float]]]:
         """Compute the bounds of the object itself."""
@@ -185,10 +221,11 @@ class PolyLine(BaseMultiLocation):
         """
     )
 
-    def __init__(self, locations, popup=None, tooltip=None, **kwargs):
-        super().__init__(locations, popup=popup, tooltip=tooltip)
+    def __init__(self, locations, popup=None, tooltip=None, highlight_color=None, **kwargs):
+        super().__init__(locations, popup=popup, tooltip=tooltip, highlight_color=highlight_color)
         self._name = "PolyLine"
         self.options = path_options(line=True, **kwargs)
+        self.options['highlight_color'] = highlight_color # Default highlight color is red
 
 
 class Polygon(BaseMultiLocation):
@@ -229,11 +266,13 @@ class Polygon(BaseMultiLocation):
         locations: TypeMultiLine,
         popup: Union[Popup, str, None] = None,
         tooltip: Union[Tooltip, str, None] = None,
+        highlight_color: Optional[str] = None,
         **kwargs: TypePathOptions
     ):
-        super().__init__(locations, popup=popup, tooltip=tooltip)
+        super().__init__(locations, popup=popup, tooltip=tooltip, highlight_color=highlight_color)
         self._name = "Polygon"
         self.options = path_options(line=True, radius=None, **kwargs)
+        self.options['highlight_color'] = highlight_color 
 
 
 class Rectangle(MacroElement):
@@ -262,6 +301,25 @@ class Rectangle(MacroElement):
                 {{ this.locations|tojson }},
                 {{ this.options|tojson }}
             ).addTo({{this._parent.get_name()}});
+            
+            {{ this.get_name() }}.options.original_color = {{ this.options.color|tojson }};
+
+            function highlightLayer(e) {
+                if (e.target.getTooltip()) {
+                    e.target.setStyle({ color:  e.target.options.highlight_color });
+                }
+            }
+
+            function resetHighlight(e) {
+                e.target.setStyle({ color:  e.target.options.original_color });
+            }
+
+            {% if this.options.highlight_color %}
+            {{ this.get_name() }}.on({
+                mouseover: highlightLayer,
+                mouseout: resetHighlight
+            });
+            {% endif %}
         {% endmacro %}
         """
     )
@@ -271,6 +329,7 @@ class Rectangle(MacroElement):
         bounds: TypeLine,
         popup: Union[Popup, str, None] = None,
         tooltip: Union[Tooltip, str, None] = None,
+        highlight_color: Optional[str] = None,
         **kwargs: TypePathOptions
     ):
         super().__init__()
@@ -284,6 +343,7 @@ class Rectangle(MacroElement):
             self.add_child(
                 tooltip if isinstance(tooltip, Tooltip) else Tooltip(str(tooltip))
             )
+        self.options['highlight_color'] = highlight_color 
 
     def _get_self_bounds(self) -> List[List[Optional[float]]]:
         """Compute the bounds of the object itself."""
@@ -322,6 +382,25 @@ class Circle(Marker):
                 {{ this.location|tojson }},
                 {{ this.options|tojson }}
             ).addTo({{ this._parent.get_name() }});
+                        
+            {{ this.get_name() }}.options.original_color = {{ this.options.color|tojson }};
+
+            function highlightLayer(e) {
+                if (e.target.getTooltip()) {
+                    e.target.setStyle({ color:  e.target.options.highlight_color });
+                }
+            }
+
+            function resetHighlight(e) {
+                e.target.setStyle({ color:  e.target.options.original_color });
+            }
+
+            {% if this.options.highlight_color %}
+            {{ this.get_name() }}.on({
+                mouseover: highlightLayer,
+                mouseout: resetHighlight
+            });
+            {% endif %}
         {% endmacro %}
         """
     )
@@ -332,11 +411,13 @@ class Circle(Marker):
         radius: float = 50,
         popup: Union[Popup, str, None] = None,
         tooltip: Union[Tooltip, str, None] = None,
+        highlight_color: str = None,
         **kwargs: TypePathOptions
     ):
-        super().__init__(location, popup=popup, tooltip=tooltip)
+        super().__init__(location, popup=popup, tooltip=tooltip, highlight_color=highlight_color)
         self._name = "circle"
         self.options = path_options(line=False, radius=radius, **kwargs)
+        self.options['highlight_color'] = highlight_color 
 
 
 class CircleMarker(Marker):
@@ -378,8 +459,10 @@ class CircleMarker(Marker):
         radius: float = 10,
         popup: Union[Popup, str, None] = None,
         tooltip: Union[Tooltip, str, None] = None,
+        highlight_color: str = None,
         **kwargs: TypePathOptions
     ):
-        super().__init__(location, popup=popup, tooltip=tooltip)
+        super().__init__(location, popup=popup, tooltip=tooltip, highlight_color=highlight_color)
         self._name = "CircleMarker"
         self.options = path_options(line=False, radius=radius, **kwargs)
+        self.options['highlight_color'] = highlight_color 
