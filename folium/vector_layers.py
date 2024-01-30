@@ -136,25 +136,6 @@ class BaseMultiLocation(MacroElement):
                     {{ this.locations|tojson }},
                     {{ this.options|tojson }}          
                 ).addTo({{this._parent.get_name()}});
-                
-                {{ this.get_name() }}.options.original_color = {{ this.options.color|tojson }};
-    
-                function highlightLayer(e) {
-                    if (e.target.getTooltip()) {
-                        e.target.setStyle({ color:  e.target.options.highlight_color });
-                    }
-                }
-
-                function resetHighlight(e) {
-                    e.target.setStyle({ color:  e.target.options.original_color });
-                }
-    
-                {% if this.options.highlight_color %}
-                {{ this.get_name() }}.on({
-                    mouseover: highlightLayer,
-                    mouseout: resetHighlight
-                });
-                {% endif %}
             {% endmacro %}
             """
         )
@@ -164,7 +145,6 @@ class BaseMultiLocation(MacroElement):
         locations: TypeMultiLine,
         popup: Union[Popup, str, None] = None,
         tooltip: Union[Tooltip, str, None] = None,
-        highlight_color: Optional[str] = None,
         **kwargs: TypePathOptions
     ):
         super().__init__()
@@ -175,8 +155,8 @@ class BaseMultiLocation(MacroElement):
             self.add_child(
                 tooltip if isinstance(tooltip, Tooltip) else Tooltip(str(tooltip))
             )
-        self.options = path_options(line=True, highlight_color=highlight_color, **kwargs)
-        self._add_highlight_color()
+        self.options = path_options(line=True, **kwargs)
+
 
 
     def _get_self_bounds(self) -> List[List[Optional[float]]]:
@@ -217,15 +197,34 @@ class PolyLine(BaseMultiLocation):
                 {{ this.locations|tojson }},
                 {{ this.options|tojson }}
             ).addTo({{this._parent.get_name()}});
+            {% if this.options.highlight_color %}
+            {{ this.get_name() }}.options.original_color = {{ this.options.color|tojson }};
+
+            function highlightLayer(e) {
+                if (e.target.getTooltip()) {
+                    e.target.setStyle({ color:  e.target.options.highlight_color });
+                }
+            }
+
+            function resetHighlight(e) {
+                e.target.setStyle({ color:  e.target.options.original_color });
+            }
+
+            {{ this.get_name() }}.on({
+                mouseover: highlightLayer,
+                mouseout: resetHighlight
+            });
+            {% endif %}
         {% endmacro %}
         """
     )
 
     def __init__(self, locations, popup=None, tooltip=None, highlight_color=None, **kwargs):
-        super().__init__(locations, popup=popup, tooltip=tooltip, highlight_color=highlight_color)
+        super().__init__(locations, popup=popup, tooltip=tooltip)
         self._name = "PolyLine"
         self.options = path_options(line=True, **kwargs)
-        self.options['highlight_color'] = highlight_color # Default highlight color is red
+        if highlight_color is not None:
+            self.options['highlight_color'] = highlight_color
 
 
 class Polygon(BaseMultiLocation):
@@ -257,6 +256,24 @@ class Polygon(BaseMultiLocation):
                 {{ this.locations|tojson }},
                 {{ this.options|tojson }}
             ).addTo({{this._parent.get_name()}});
+            {% if this.options.highlight_color %}
+            {{ this.get_name() }}.options.original_color = {{ this.options.color|tojson }};
+
+            function highlightLayer(e) {
+                if (e.target.getTooltip()) {
+                    e.target.setStyle({ color:  e.target.options.highlight_color });
+                }
+            }
+
+            function resetHighlight(e) {
+                e.target.setStyle({ color:  e.target.options.original_color });
+            }
+
+            {{ this.get_name() }}.on({
+                mouseover: highlightLayer,
+                mouseout: resetHighlight
+            });
+            {% endif %}
         {% endmacro %}
         """
     )
@@ -269,11 +286,12 @@ class Polygon(BaseMultiLocation):
         highlight_color: Optional[str] = None,
         **kwargs: TypePathOptions
     ):
-        super().__init__(locations, popup=popup, tooltip=tooltip, highlight_color=highlight_color)
+        super().__init__(locations, popup=popup, tooltip=tooltip)
         self._name = "Polygon"
         self.options = path_options(line=True, radius=None, **kwargs)
-        self.options['highlight_color'] = highlight_color 
-
+        if highlight_color is not None:
+            self.options['highlight_color'] = highlight_color
+        
 
 class Rectangle(MacroElement):
     """Draw rectangle overlays on a map.
@@ -301,7 +319,7 @@ class Rectangle(MacroElement):
                 {{ this.locations|tojson }},
                 {{ this.options|tojson }}
             ).addTo({{this._parent.get_name()}});
-            
+            {% if this.options.highlight_color %}
             {{ this.get_name() }}.options.original_color = {{ this.options.color|tojson }};
 
             function highlightLayer(e) {
@@ -314,7 +332,6 @@ class Rectangle(MacroElement):
                 e.target.setStyle({ color:  e.target.options.original_color });
             }
 
-            {% if this.options.highlight_color %}
             {{ this.get_name() }}.on({
                 mouseover: highlightLayer,
                 mouseout: resetHighlight
@@ -343,7 +360,8 @@ class Rectangle(MacroElement):
             self.add_child(
                 tooltip if isinstance(tooltip, Tooltip) else Tooltip(str(tooltip))
             )
-        self.options['highlight_color'] = highlight_color 
+        if highlight_color is not None:
+            self.options['highlight_color'] = highlight_color
 
     def _get_self_bounds(self) -> List[List[Optional[float]]]:
         """Compute the bounds of the object itself."""
@@ -382,7 +400,7 @@ class Circle(Marker):
                 {{ this.location|tojson }},
                 {{ this.options|tojson }}
             ).addTo({{ this._parent.get_name() }});
-                        
+            {% if this.options.highlight_color %}
             {{ this.get_name() }}.options.original_color = {{ this.options.color|tojson }};
 
             function highlightLayer(e) {
@@ -395,7 +413,6 @@ class Circle(Marker):
                 e.target.setStyle({ color:  e.target.options.original_color });
             }
 
-            {% if this.options.highlight_color %}
             {{ this.get_name() }}.on({
                 mouseover: highlightLayer,
                 mouseout: resetHighlight
@@ -411,13 +428,14 @@ class Circle(Marker):
         radius: float = 50,
         popup: Union[Popup, str, None] = None,
         tooltip: Union[Tooltip, str, None] = None,
-        highlight_color: str = None,
+        highlight_color: Optional[str] = None,
         **kwargs: TypePathOptions
     ):
-        super().__init__(location, popup=popup, tooltip=tooltip, highlight_color=highlight_color)
+        super().__init__(location, popup=popup, tooltip=tooltip)
         self._name = "circle"
         self.options = path_options(line=False, radius=radius, **kwargs)
-        self.options['highlight_color'] = highlight_color 
+        if highlight_color is not None:
+            self.options['highlight_color'] = highlight_color
 
 
 class CircleMarker(Marker):
@@ -449,6 +467,24 @@ class CircleMarker(Marker):
                 {{ this.location|tojson }},
                 {{ this.options|tojson }}
             ).addTo({{ this._parent.get_name() }});
+            {% if this.options.highlight_color %}
+            {{ this.get_name() }}.options.original_color = {{ this.options.color|tojson }};
+
+            function highlightLayer(e) {
+                if (e.target.getTooltip()) {
+                    e.target.setStyle({ color:  e.target.options.highlight_color });
+                }
+            }
+
+            function resetHighlight(e) {
+                e.target.setStyle({ color:  e.target.options.original_color });
+            }
+
+            {{ this.get_name() }}.on({
+                mouseover: highlightLayer,
+                mouseout: resetHighlight
+            });
+            {% endif %}
         {% endmacro %}
         """
     )
@@ -459,10 +495,11 @@ class CircleMarker(Marker):
         radius: float = 10,
         popup: Union[Popup, str, None] = None,
         tooltip: Union[Tooltip, str, None] = None,
-        highlight_color: str = None,
+        highlight_color: Optional[str] = None,
         **kwargs: TypePathOptions
     ):
-        super().__init__(location, popup=popup, tooltip=tooltip, highlight_color=highlight_color)
+        super().__init__(location, popup=popup, tooltip=tooltip)
         self._name = "CircleMarker"
         self.options = path_options(line=False, radius=radius, **kwargs)
-        self.options['highlight_color'] = highlight_color 
+        if highlight_color is not None:
+            self.options['highlight_color'] = highlight_color
